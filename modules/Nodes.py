@@ -24,6 +24,9 @@ class VarAccessNode:
         self.var_name_tok = var_name_tok
         self.pos_start = self.var_name_tok.pos_start
         self.pos_end = self.var_name_tok.pos_end
+        
+    def __repr__(self):
+        return f'{self.var_name_tok}'
 
 
 class VarAssignNode:
@@ -31,7 +34,7 @@ class VarAssignNode:
         self.var_name_tok = var_name_tok
         self.value_node = value_node
 
-    def __str__(self):
+    def __repr__(self):
         return f"({self.var_name_tok}, {self.value_node})"
 
 
@@ -66,6 +69,9 @@ class IfNode:
         self.pos_start = self.cases[0][0].pos_start
         self.pos_end = (
             self.else_case or self.cases[len(self.cases) - 1][0]).pos_end
+        
+    def __repr__(self):
+        return f'({self.cases}, {self.else_case})'
 
 
 class ForNode:
@@ -77,6 +83,9 @@ class ForNode:
         self.body_node = body_node
         self.pos_start = self.var_name_tok.pos_start
         self.pos_end = self.body_node.pos_end
+        
+    def __repr__(self):
+        return f'({self.var_name_tok}, {self.start_value_node}, {self.end_value_node}, {self.step_value_node}, {self.body_node})'
 
 
 class WhileNode:
@@ -85,6 +94,9 @@ class WhileNode:
         self.body_node = body_node
         self.pos_start = self.condition_node.pos_start
         self.pos_end = self.body_node.pos_end
+        
+    def __repr__(self):
+        return f'({self.condition_node}, {self.body_node})'
 
 
 class FuncDefNode:
@@ -100,6 +112,9 @@ class FuncDefNode:
             self.pos_start = self.body_node.pos_start
 
         self.pos_end = self.body_node.pos_end
+        
+    def __repr__(self):
+        return f'({self.var_name_tok}, {self.arg_name_toks}, {self.body_node})'
 
 
 class CallNode:
@@ -112,3 +127,6 @@ class CallNode:
             self.pos_end = self.arg_nodes[len(self.arg_nodes) - 1].pos_end
         else:
             self.pos_end = self.node_to_call.pos_end
+            
+    def __repr__(self):
+        return f'({self.node_to_call}, {self.arg_nodes})'
