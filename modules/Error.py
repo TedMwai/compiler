@@ -1,4 +1,4 @@
-import strings_with_arrows
+from strings_with_arrows import *
 
 # ERRORS
 class Error:
