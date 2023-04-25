@@ -1,6 +1,6 @@
-from strings_with_arrows import *
+from strings_with_arrows import string_with_arrows
 
-# ERRORS
+
 class Error:
     def __init__(self, pos_start, pos_end, error_name, details):
         self.pos_start = pos_start
@@ -12,8 +12,8 @@ class Error:
         result = f'{self.error_name}: {self.details}\n'
         result += f'File {self.pos_start.fn}, line {self.pos_start.ln + 1}'
         result += '\n\n' + \
-            strings_with_arrows(self.pos_start.ftxt,
-                                self.pos_start, self.pos_end)
+            string_with_arrows(self.pos_start.ftxt,
+                               self.pos_start, self.pos_end)
         return result
 
 
@@ -41,8 +41,8 @@ class RTError(Error):
         result = self.generate_traceback()
         result += f'{self.error_name}: {self.details}'
         result += '\n\n' + \
-            strings_with_arrows(self.pos_start.ftxt,
-                                self.pos_start, self.pos_end)
+            string_with_arrows(self.pos_start.ftxt,
+                               self.pos_start, self.pos_end)
         return result
 
     def generate_traceback(self):

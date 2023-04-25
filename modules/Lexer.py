@@ -42,7 +42,10 @@ class Lexer:
             '/': TT_DIV,
             '(': TT_LPAREN,
             ')': TT_RPAREN,
-            '^': TT_POW
+            '^': TT_POW,
+            ',': TT_COMMA,
+            '[': TT_LSQUARE,
+            ']': TT_RSQUARE,
         }
         self.advance()
 
@@ -56,6 +59,11 @@ class Lexer:
 
         while self.current_char != None:
             if self.current_char in ' \t':
+                self.advance()
+            elif self.current_char == '#':
+                self.skip_comment()
+            elif self.current_char in ';\n':
+                tokens.append(Token(TT_NEWLINE, pos_start=self.pos))
                 self.advance()
             elif self.current_char in DIGITS:
                 tokens.append(self.make_number())
@@ -80,9 +88,6 @@ class Lexer:
                 tokens.append(self.make_less_than())
             elif self.current_char == '>':
                 tokens.append(self.make_greater_than())
-            elif self.current_char == ',':
-                tokens.append(Token(TT_COMMA, pos_start=self.pos))
-                self.advance()
             else:
                 pos_start = self.pos.copy()
                 char = self.current_char
@@ -196,3 +201,9 @@ class Lexer:
             self.advance()
             tok_type = TT_GTE
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
+
+    def skip_comment(self):
+        self.advance()
+        while self.current_char != '\n':
+            self.advance()
+        self.advance()

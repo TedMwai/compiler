@@ -4,7 +4,6 @@ from modules.Parser import Parser
 def run(fn, text):
     lexer = Lexer(fn, text)
     tokens, error = lexer.make_tokens()
-    print (tokens)
     if error:
         return None, error
     
