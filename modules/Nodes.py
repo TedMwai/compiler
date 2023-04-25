@@ -26,7 +26,7 @@ class ListNode:
         self.pos_end = pos_end
 
     def __repr__(self):
-        return f'{self.element_nodes}, {self.pos_start}, {self.pos_end}'
+        return f'{self.element_nodes}'
 
 
 class VarAccessNode:
