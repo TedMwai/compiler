@@ -71,8 +71,6 @@ class Parser:
             ))
         return res
 
-    ###################################
-
     def statements(self):
         res = ParseResult()
         statements = []
