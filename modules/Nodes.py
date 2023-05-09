@@ -2,6 +2,8 @@ from modules.Lexer import Token
 from modules.Token import *
 
 # NODES
+
+
 class NumberNode:
     def __init__(self, tok):
         self.tok = tok
@@ -40,7 +42,8 @@ class ListNode:
     def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
         code_statements = ''
         for node in self.element_nodes:
-            code_statements += node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+            code_statements += node.get_ic(get_next_temporary_variable,
+                                           get_current_temporary_variable)
         return code_statements
 
 
@@ -83,7 +86,8 @@ class BinOpNode:
         return f'({self.left_node}, {self.op_tok}, {self.right_node})'
 
     def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
-        left_code = self.left_node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+        left_code = self.left_node.get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
         temp_left_code = get_current_temporary_variable()
 
         right_code = self.right_node.get_ic(
@@ -129,7 +133,8 @@ class UnaryOpNode:
         return f'({self.op_tok}, {self.node})'
 
     def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
-        node_code = self.node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+        node_code = self.node.get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
         temp_node_code = get_current_temporary_variable()
 
         if self.op_tok.type == TT_MINUS:
@@ -154,36 +159,34 @@ class IfNode:
         self.elif_token = Token(TT_KEYWORD, 'ELIF')
 
     def __repr__(self):
+        # Start with the IF keyword and its condition
+        res = f"{self.if_token}, {self.cases[0][0]}"
+
+        # Add the THEN keyword and its statement
+        res += f", {self.then_token}, {self.cases[0][1]}"
+
+        # Add all the ELIF keywords, their conditions, and their statements
+        for case in self.cases[1:]:
+            res += f", {self.elif_token}, {case[0]}"
+            res += f", {self.then_token}, {case[1]}"
+
+        # Add the ELSE keyword and its statement if it exists
         if self.else_case is not None:
-            # Start with the IF keyword and its condition
-            res = f"{self.if_token}, {self.cases[0][0]}"
-
-            # Add the THEN keyword and its statement
-            res += f", {self.then_token}, {self.cases[0][1]}"
-
-            # Add all the ELIF keywords, their conditions, and their statements
-            for case in self.cases[1:]:
-                res += f", {self.elif_token}, {case[0]}"
-                res += f", {self.then_token}, {case[1]}"
-
-            # Add the ELSE keyword and its statement
-            res += f"{self.else_token}, {self.else_case}"
-
-        else:
-            # Start with the IF keyword and its condition
-            res = f"{self.if_token}, {self.cases[0][0]}"
-
-            # Add the THEN keyword and its statement
-            res += f", {self.then_token}, {self.cases[0][1]}"
-
-            # Add all the ELIF keywords and their conditions
-            for case in self.cases[1:]:
-                res += f", {self.elif_token}, {case[0]}"
-                res += f", {self.then_token}, {case[1]}"
-
-            # Add the ELSE keyword and its statement
             res += f"{self.else_token}, {self.else_case}"
         return res
+
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        code = ''
+        condition_code = self.cases[0][0].get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
+        temp_condition_code = get_current_temporary_variable()
+        label = get_next_temporary_variable()
+        body_code = self.cases[0][1].get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
+
+        code += f'{condition_code} if !t{temp_condition_code} goto L{label} \n{body_code} L{label}:\n'
+
+        return code
 
 
 class ForNode:
@@ -207,6 +210,52 @@ class ForNode:
     def __repr__(self):
         res = f"{self.for_token}, {self.var_name_tok}, {self.to_token}, {self.end_value_node}, {self.step_token}, {self.step_value_node}, {self.then_token}, {self.body_node}"
         return res
+
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        code = ''
+
+        variable_name_token_name = self.var_name_tok.value
+
+        start_value_code = self.start_value_node.get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
+        temp_start_value_code = get_current_temporary_variable()
+
+        end_value_code = self.end_value_node.get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
+        temp_end_value_code = get_current_temporary_variable()
+
+        if self.step_value_node:
+            step_value_code = self.step_value_node.get_ic(
+                get_next_temporary_variable, get_current_temporary_variable)
+            temp_step_value_code = get_current_temporary_variable()
+
+        loop_start_label = get_next_temporary_variable()
+        loop_end_label = get_next_temporary_variable()
+
+        code += f'\n {loop_start_label}: \n'
+
+        code += f'{start_value_code}\n'
+        code += f'{start_value_code} t{temp_start_value_code} = {variable_name_token_name} \n'
+        code += f'{end_value_code}\n'
+        if self.step_value_node:
+            code += f'{step_value_code} t{temp_step_value_code} = {variable_name_token_name} \n'
+
+        code += f'if t{temp_start_value_code} > t{temp_end_value_code} goto L{loop_end_label} \n'
+
+        body_code = self.body_node.get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
+        code += body_code
+
+        if self.step_value_node:
+            code += f'{variable_name_token_name} = {variable_name_token_name} + t{temp_step_value_code} \n'
+        else:
+            code += f'{variable_name_token_name} = {variable_name_token_name} + 1 \n'
+
+        code += f'goto L{loop_start_label} \n'
+
+        code += f'\n {loop_end_label}: \n'
+
+        return code
 
 
 class WhileNode:
@@ -241,7 +290,8 @@ class WhileNode:
         code += f'{condition_code}t{get_next_temporary_variable()} = t{temp_condition_code}\n'
         code += f'if t{get_current_temporary_variable()} == 0 goto {loop_end_label}\n'
 
-        body_code = self.body_node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+        body_code = self.body_node.get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
         temp_body_code = get_current_temporary_variable()
 
         code += f'{body_code}t{get_next_temporary_variable()} = t{temp_body_code}\n'
@@ -286,7 +336,8 @@ class FuncDefNode:
         for arg_name_tok in self.arg_name_toks:
             code += f'arg {arg_name_tok.value}\n'
 
-        body_code = self.body_node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+        body_code = self.body_node.get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
         temp_body_code = get_current_temporary_variable()
 
         code += f'{body_code}t{get_next_temporary_variable()} = t{temp_body_code}\n'
