@@ -11,6 +11,9 @@ class NumberNode:
     def __repr__(self):
         return f'{self.tok}'
 
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        return f't{get_next_temporary_variable()} = {self.tok.value}\n'
+
 
 class StringNode:
     def __init__(self, tok):
@@ -20,6 +23,9 @@ class StringNode:
 
     def __repr__(self):
         return f'{self.tok}'
+
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        return f't{get_next_temporary_variable()} = "{self.tok.value}"\n'
 
 
 class ListNode:
@@ -31,6 +37,12 @@ class ListNode:
     def __repr__(self):
         return f'{self.element_nodes}'
 
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        code_statements = ''
+        for node in self.element_nodes:
+            code_statements += node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+        return code_statements
+
 
 class VarAccessNode:
     def __init__(self, var_name_tok):
@@ -40,6 +52,9 @@ class VarAccessNode:
 
     def __repr__(self):
         return f'{self.var_name_tok}'
+
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        return f't{get_next_temporary_variable()} = {self.var_name_tok.value}\n'
 
 
 class VarAssignNode:
@@ -51,6 +66,9 @@ class VarAssignNode:
 
     def __repr__(self):
         return f'{self.var_name_tok}, {self.value_node}'
+
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        return f'{self.value_node.get_ic(get_next_temporary_variable, get_current_temporary_variable)}{self.var_name_tok.value} = t{get_current_temporary_variable()}\n'
 
 
 class BinOpNode:
@@ -64,6 +82,41 @@ class BinOpNode:
     def __repr__(self):
         return f'({self.left_node}, {self.op_tok}, {self.right_node})'
 
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        left_code = self.left_node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+        temp_left_code = get_current_temporary_variable()
+
+        right_code = self.right_node.get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
+        temp_right_code = get_current_temporary_variable()
+
+        op = self.op_symbol_converter()
+        return f'{left_code}{right_code}t{get_next_temporary_variable()} = t{temp_left_code} {op} t{temp_right_code}\n'
+
+    def op_symbol_converter(self):
+        if self.op_tok.type == TT_PLUS:
+            return '+'
+        elif self.op_tok.type == TT_MINUS:
+            return '-'
+        elif self.op_tok.type == TT_DIV:
+            return '/'
+        elif self.op_tok.type == TT_MUL:
+            return '*'
+        elif self.op_tok.type == TT_POW:
+            return '^'
+        elif self.op_tok.type == TT_EE:
+            return '=='
+        elif self.op_tok.type == TT_NE:
+            return '!='
+        elif self.op_tok.type == TT_LT:
+            return '<'
+        elif self.op_tok.type == TT_GT:
+            return '<'
+        elif self.op_tok.type == TT_LTE:
+            return '<='
+        else:
+            return '>='
+
 
 class UnaryOpNode:
     def __init__(self, op_tok, node):
@@ -74,6 +127,15 @@ class UnaryOpNode:
 
     def __repr__(self):
         return f'({self.op_tok}, {self.node})'
+
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        node_code = self.node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+        temp_node_code = get_current_temporary_variable()
+
+        if self.op_tok.type == TT_MINUS:
+            return f'{node_code}t{get_next_temporary_variable()} = -t{temp_node_code}\n'
+        else:
+            return f'{node_code}t{get_next_temporary_variable()} = +t{temp_node_code}\n'
 
 
 class IfNode:
@@ -106,7 +168,7 @@ class IfNode:
 
             # Add the ELSE keyword and its statement
             res += f"{self.else_token}, {self.else_case}"
-            
+
         else:
             # Start with the IF keyword and its condition
             res = f"{self.if_token}, {self.cases[0][0]}"
@@ -118,7 +180,7 @@ class IfNode:
             for case in self.cases[1:]:
                 res += f", {self.elif_token}, {case[0]}"
                 res += f", {self.then_token}, {case[1]}"
-            
+
             # Add the ELSE keyword and its statement
             res += f"{self.else_token}, {self.else_case}"
         return res
@@ -164,6 +226,31 @@ class WhileNode:
         res = f"{self.while_token}, {self.condition_node}, {self.then_token}, {self.body_node}"
         return res
 
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        code = ''
+
+        condition_code = self.condition_node.get_ic(
+            get_next_temporary_variable, get_current_temporary_variable)
+        temp_condition_code = get_current_temporary_variable()
+
+        loop_start_label = get_next_temporary_variable()
+        loop_end_label = get_next_temporary_variable()
+
+        code += f'{loop_start_label}:\n'
+
+        code += f'{condition_code}t{get_next_temporary_variable()} = t{temp_condition_code}\n'
+        code += f'if t{get_current_temporary_variable()} == 0 goto {loop_end_label}\n'
+
+        body_code = self.body_node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+        temp_body_code = get_current_temporary_variable()
+
+        code += f'{body_code}t{get_next_temporary_variable()} = t{temp_body_code}\n'
+
+        code += f'goto {loop_start_label}\n'
+        code += f'{loop_end_label}:\n'
+
+        return code
+
 
 class FuncDefNode:
     def __init__(self, var_name_tok, arg_name_toks, body_node, should_auto_return):
@@ -187,6 +274,30 @@ class FuncDefNode:
     def __repr__(self):
         return f"{self.fun_token}, {self.var_name_tok}, {self.arg_name_toks}, {self.body_node}"
 
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        code = ''
+        func_name = self.var_name_tok.value if self.var_name_tok else None
+
+        if func_name:
+            code += f'\n\nfunc_start {func_name}\n'
+        else:
+            code += '\n\nfunc_start\n'
+
+        for arg_name_tok in self.arg_name_toks:
+            code += f'arg {arg_name_tok.value}\n'
+
+        body_code = self.body_node.get_ic(get_next_temporary_variable, get_current_temporary_variable)
+        temp_body_code = get_current_temporary_variable()
+
+        code += f'{body_code}t{get_next_temporary_variable()} = t{temp_body_code}\n'
+
+        if self.should_auto_return:
+            code += f'return t{get_current_temporary_variable()}\n'
+
+        code += 'func_end\n\n'
+
+        return code
+
 
 class CallNode:
     def __init__(self, node_to_call, arg_nodes):
@@ -204,11 +315,26 @@ class CallNode:
         self.open_paren_token = Token(TT_LPAREN, '(')
         self.close_paren_token = Token(TT_RPAREN, ')')
         self.comma_token = Token(TT_COMMA, ',')
-        # self.dot_token = Token(TT_DOT, '.')
         self.arrow_token = Token(TT_ARROW, '->')
 
     def __repr__(self):
         return f"{self.node_to_call}, {self.open_paren_token}, {self.arg_nodes}, {self.close_paren_token}"
+
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        arg_nodes_ic = ''
+        arg_nodes_temps = ''
+
+        for arg_node in self.arg_nodes:
+            arg_nodes_ic += arg_node.get_ic(get_next_temporary_variable,
+                                            get_current_temporary_variable)
+            arg_nodes_temp = get_current_temporary_variable()
+
+            if arg_nodes_temps == '':
+                arg_nodes_temps += f't{arg_nodes_temp}'
+            else:
+                arg_nodes_temps += f', t{arg_nodes_temp}'
+
+        return f'{arg_nodes_ic} CALL {self.node_to_call.var_name_tok.value} {arg_nodes_temps}\n'
 
 
 class ReturnNode:
@@ -224,6 +350,9 @@ class ReturnNode:
     def __repr__(self):
         return f"{self.return_token}, {self.node_to_return}"
 
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        return f'{self.node_to_return.get_ic(get_next_temporary_variable, get_current_temporary_variable)} RETURN t{get_current_temporary_variable()}\n\n'
+
 
 class ContinueNode:
     def __init__(self, pos_start, pos_end):
@@ -236,6 +365,9 @@ class ContinueNode:
     def __repr__(self):
         return f"{self.continue_token}"
 
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        return f'goto {get_current_temporary_variable()}\n\n'
+
 
 class BreakNode:
     def __init__(self, pos_start, pos_end):
@@ -247,3 +379,6 @@ class BreakNode:
 
     def __repr__(self):
         return f"{self.break_token}"
+
+    def get_ic(self, get_next_temporary_variable, get_current_temporary_variable):
+        return f'goto {get_current_temporary_variable()}\n\n'
