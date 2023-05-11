@@ -1,0 +1,7 @@
+
+IF (x + 2) < 8 THEN
+    VAR x = 5
+    VAR x = x + 2
+ELSE
+    VAR x = x - 2
+END
